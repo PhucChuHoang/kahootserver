@@ -59,16 +59,17 @@ def load_user(id):
 @login_required
 def create_quiz():
     data = request.get_json() or {}
-    if 'title' not in data or 'questions' not in data:
-        return bad_request('Title and questions are required')
-    
     quiz = Quiz(user_id=current_user.id)
     try:
-        quiz.from_dict(data)
+        quiz.from_dict(data, new_quiz=True)
         db.session.add(quiz)
         db.session.commit()
     except ValueError as e:
+        db.session.rollback()  # Rollback any changes if an exception occurs
         return bad_request(str(e))
+    except Exception as e:
+        db.session.rollback()  # Rollback any changes for any other exceptions
+        return error_response(500, str(e))
     
     response = jsonify(quiz.to_dict())
     response.status_code = 201
@@ -99,7 +100,11 @@ def update_quiz(quiz_id):
         quiz.from_dict(data)
         db.session.commit()
     except ValueError as e:
+        db.session.rollback()  # Rollback any changes if an exception occurs
         return bad_request(str(e))
+    except Exception as e:
+        db.session.rollback()  # Rollback any changes for any other exceptions
+        return error_response(500, str(e))
     
     
     return jsonify(quiz.to_dict())

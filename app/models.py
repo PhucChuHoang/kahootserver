@@ -93,9 +93,11 @@ class Quiz(db.Model):
                         # raise ValueError('Question id is missing in the provided data.')
                         self.questions.append(Question().from_dict(question_data, self, new_question=True))
                     # question id must be valid (exist)
-                    if question_id not in existing_question_ids:
-                        raise ValueError('Question id is invalid.')
-                    existing_question_ids[question_id].from_dict(question_data, self)
+                    else:
+                        if question_id not in existing_question_ids:
+                            print("raise exception")
+                            raise ValueError('Question id is invalid.')
+                        existing_question_ids[question_id].from_dict(question_data, self)
         return self
 
 class Question(db.Model):
@@ -141,9 +143,10 @@ class Question(db.Model):
                         # raise ValueError('Option id is missing in the provided data.')
                         self.options.append(Option().from_dict(option_data, self, new_option=True))
                     # option id must be valid (exist)
-                    if option_id not in existing_option_ids:
-                        raise ValueError('Option id is invalid.')
-                    existing_option_ids[option_id].from_dict(option_data, self)
+                    else:
+                        if option_id not in existing_option_ids:
+                            raise ValueError('Option id is invalid.')
+                        existing_option_ids[option_id].from_dict(option_data, self)
         return self
 
 class Option(db.Model):
