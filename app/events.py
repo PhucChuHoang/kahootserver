@@ -1,6 +1,6 @@
 from flask_socketio import join_room, leave_room, send, emit
 from app import socketio, db
-from app.models import Session, Participant, Response, Score, Option, Question
+from app.models import Session, Participant, Response, User
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from functools import wraps
 from datetime import datetime
@@ -23,7 +23,7 @@ response_tracker = {}
 @jwt_required_socketio
 def handle_join_session(user_id, data):
     session_code = data['session_code']
-    username = data['username']
+    username = User.query.get(user_id).username
     
     session = Session.query.filter_by(code=session_code).first()
     if not session:
@@ -42,7 +42,7 @@ def handle_join_session(user_id, data):
 @jwt_required_socketio
 def handle_leave_session(user_id, data):
     session_code = data['session_code']
-    username = data['username']
+    username = User.query.get(user_id).username
     
     session = Session.query.filter_by(code=session_code).first()
     participant = Participant.query.filter_by(session_id=session.id, user_id=user_id).first()
