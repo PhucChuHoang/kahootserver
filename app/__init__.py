@@ -5,7 +5,6 @@ from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_socketio import SocketIO
 from flask_cors import CORS
-from app import app
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -25,5 +24,5 @@ def check_if_token_in_blacklist(jwt_header, jwt_payload):
 
 from app import routes, models, events
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
