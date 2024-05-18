@@ -186,6 +186,7 @@ class Session(db.Model):
     host_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     code = db.Column(db.String(6), unique=True, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    is_started = db.Column(db.Boolean, default=False, nullable=False)
     quiz = db.relationship('Quiz')
     host = db.relationship('User')
     participants = db.relationship('Participant', back_populates='session', cascade='all, delete-orphan')

@@ -1,10 +1,8 @@
-from flask import request, jsonify, session
-from app import app, db #, login_manager
-from flask_login import current_user, login_user, login_required, logout_user
+from flask import request, jsonify
+from app import app, db
 from app.models import *
 from app.errors import bad_request, error_response
 from app.utils import generate_unique_code
-from flask_socketio import join_room
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt, verify_jwt_in_request
 from app import blacklist
 from flask_jwt_extended.exceptions import NoAuthorizationError
@@ -142,18 +140,19 @@ def get_all_quizzes():
 
 
 @app.route('/create/session', methods=['POST'])
-@login_required
+@jwt_required()
 def create_session():
     data = request.get_json() or {}
     quiz_id = data.get('quiz_id')
     if quiz_id is None:
         return bad_request('quiz_id is missing')
+    user_id = get_jwt_identity()
     quiz = Quiz.query.get_or_404(quiz_id)
-    if quiz.user_id != current_user.id:
+    if quiz.user_id != user_id:
         return error_response(403, 'You do not have permission to create a session for this quiz.')
     
     session_code = generate_unique_code()  # Implement this function to generate a unique code
-    session = Session(quiz_id=quiz.id, host_id=current_user.id, code=session_code)
+    session = Session(quiz_id=quiz.id, host_id=user_id, code=session_code)
     db.session.add(session)
     db.session.commit()
     
@@ -162,17 +161,24 @@ def create_session():
     return response
 
 @app.route('/join/session', methods=['POST'])
-@login_required
+@jwt_required()
 def join_session():
     data = request.get_json() or {}
     session_code = data.get('session_code')
     if session_code is None:
         return bad_request('session_code is missing')
+
     session = Session.query.filter_by(code=session_code).first_or_404()
+
+    # Check if the session has already started
+    if session.is_started:
+        return error_response(400, 'Session has already started. You cannot join now.')
     
+    user_id = get_jwt_identity()
+
     # Add participant to session
-    participant = Participant(session_id=session.id, user_id=current_user.id)
+    participant = Participant(session_id=session.id, user_id=user_id)
     db.session.add(participant)
     db.session.commit()
-    
+
     return jsonify({'message': 'Joined session successfully'})
