@@ -1,15 +1,19 @@
 from flask import request, jsonify, session
-from app import app, db, login_manager
+from app import app, db #, login_manager
 from flask_login import current_user, login_user, login_required, logout_user
 from app.models import *
 from app.errors import bad_request, error_response
 from app.utils import generate_unique_code
 from flask_socketio import join_room
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt, verify_jwt_in_request
+from app import blacklist
+from flask_jwt_extended.exceptions import NoAuthorizationError
 
 @app.route('/uid', methods=['GET'])
-@login_required
+@jwt_required()
 def get_uid():
-    return jsonify({'uid': current_user.id})
+    user_id = get_jwt_identity()
+    return jsonify({'uid': user_id})
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -18,55 +22,50 @@ def login():
     user = User.query.filter_by(username=request.form['username']).first()
     if user is None or not user.check_password(request.form['password']):
         return bad_request('invalid username or password')
-    login_user(user, remember=True)
-    session['user_id'] = user.id
-    response = jsonify(user.to_dict())
+    access_token = create_access_token(identity=user.id)
+    response = jsonify(access_token=access_token)
     response.status_code = 200
-    # response.headers['Location'] = url_for('api.get_user', id=user.id)
     return response
 
 @app.route('/logout', methods=['POST'])
-@login_required
+@jwt_required()
 def logout():
-    logout_user()
-    session.pop('user_id', None)
+    jti = get_jwt()['jti']
+    blacklist.add(jti)
     return jsonify({'message': 'logout success'})
 
 @app.route('/register', methods=['POST'])
 def register():
-    if current_user.is_authenticated:
+    try:
+        # Check if there is an active JWT token
+        verify_jwt_in_request()
         return error_response(400, 'logout required')
-    if 'username' not in request.form or 'email' not in request.form or 'password' not in request.form:
-        return bad_request('username, email, or password is missing')
-    if User.query.filter_by(username=request.form['username']).first():
-        return bad_request('username exists')
-    if User.query.filter_by(email=request.form['email']).first():
-        return bad_request('email exists')
-    user = User()
-    user.from_dict(request.form, new_user=True)
-    db.session.add(user)
-    db.session.commit()
-    response = jsonify(user.to_dict())
-    response.status_code = 201
-    return response
-
-@login_manager.unauthorized_handler
-def unauthorized():
-    return error_response(401, 'login required')
-
-@login_manager.user_loader
-def load_user(id):
-    return User.query.get(int(id))
+    except NoAuthorizationError:
+        # If no active token, continue with registration
+        if 'username' not in request.form or 'email' not in request.form or 'password' not in request.form:
+            return bad_request('username, email, or password is missing')
+        if User.query.filter_by(username=request.form['username']).first():
+            return bad_request('username exists')
+        if User.query.filter_by(email=request.form['email']).first():
+            return bad_request('email exists')
+        user = User()
+        user.from_dict(request.form, new_user=True)
+        db.session.add(user)
+        db.session.commit()
+        response = jsonify(user.to_dict())
+        response.status_code = 201
+        return response
 
 
 # -------- QUIZ ---------
 
 
 @app.route('/create/quiz', methods=['POST'])
-@login_required
+@jwt_required()
 def create_quiz():
+    user_id = get_jwt_identity()
     data = request.get_json() or {}
-    quiz = Quiz(user_id=current_user.id)
+    quiz = Quiz(user_id=user_id)
     try:
         quiz.from_dict(data, new_quiz=True)
         db.session.add(quiz)
@@ -83,21 +82,23 @@ def create_quiz():
     return response
 
 @app.route('/quiz/<int:quiz_id>', methods=['GET'])
-@login_required
+@jwt_required()
 def get_quiz(quiz_id):
     quiz = Quiz.query.get_or_404(quiz_id)
+    user_id = get_jwt_identity()
     # Check if the current user is the owner of the quiz
-    if quiz.user_id != current_user.id:
+    if quiz.user_id != user_id:
         return error_response(403, 'You do not have permission to access this quiz.')
     
     return jsonify(quiz.to_dict())
 
 @app.route('/quiz/<int:quiz_id>', methods=['PUT'])
-@login_required
+@jwt_required()
 def update_quiz(quiz_id):
     quiz = Quiz.query.get_or_404(quiz_id)
+    user_id = get_jwt_identity()
     # Check if the current user is the owner of the quiz
-    if quiz.user_id != current_user.id:
+    if quiz.user_id != user_id:
         return error_response(403, 'You do not have permission to access this quiz.')
     
     data = request.get_json() or {}
@@ -113,15 +114,15 @@ def update_quiz(quiz_id):
         db.session.rollback()  # Rollback any changes for any other exceptions
         return error_response(500, str(e))
     
-    
     return jsonify(quiz.to_dict())
 
 @app.route('/quiz/<int:quiz_id>', methods=['DELETE'])
-@login_required
+@jwt_required()
 def delete_quiz(quiz_id):
     quiz = Quiz.query.get_or_404(quiz_id)
+    user_id = get_jwt_identity()
     # Check if the current user is the owner of the quiz
-    if quiz.user_id != current_user.id:
+    if quiz.user_id != user_id:
         return error_response(403, 'You do not have permission to access this quiz.')
     
     db.session.delete(quiz)
@@ -130,9 +131,10 @@ def delete_quiz(quiz_id):
     return jsonify({'message': 'Quiz deleted successfully'})
 
 @app.route('/quiz/all', methods=['GET'])
-@login_required
+@jwt_required()
 def get_all_quizzes():
-    quizzes = Quiz.query.filter_by(user_id=current_user.id).all()
+    user_id = get_jwt_identity()
+    quizzes = Quiz.query.filter_by(user_id=user_id).all()
     return jsonify([quiz.to_dict() for quiz in quizzes])
 
 
