@@ -15,10 +15,11 @@ def get_uid():
 
 @app.route('/login', methods=['POST'])
 def login():
-    if 'username' not in request.form or 'password' not in request.form:
+    data = request.get_json()
+    if 'username' not in data or 'password' not in data:
         return bad_request('username or password is missing')
-    user = User.query.filter_by(username=request.form['username']).first()
-    if user is None or not user.check_password(request.form['password']):
+    user = User.query.filter_by(username=data['username']).first()
+    if user is None or not user.check_password(data['password']):
         return bad_request('invalid username or password')
     access_token = create_access_token(identity=user.id)
     response = jsonify(access_token=access_token)
@@ -40,14 +41,15 @@ def register():
         return error_response(400, 'logout required')
     except NoAuthorizationError:
         # If no active token, continue with registration
-        if 'username' not in request.form or 'email' not in request.form or 'password' not in request.form:
+        data = request.get_json()
+        if 'username' not in data or 'email' not in data or 'password' not in data:
             return bad_request('username, email, or password is missing')
-        if User.query.filter_by(username=request.form['username']).first():
+        if User.query.filter_by(username=data['username']).first():
             return bad_request('username exists')
-        if User.query.filter_by(email=request.form['email']).first():
+        if User.query.filter_by(email=data['email']).first():
             return bad_request('email exists')
         user = User()
-        user.from_dict(request.form, new_user=True)
+        user.from_dict(data, new_user=True)
         db.session.add(user)
         db.session.commit()
         response = jsonify(user.to_dict())
