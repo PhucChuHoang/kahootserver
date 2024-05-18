@@ -180,31 +180,43 @@ class Option(db.Model):
                     setattr(self, field, data[field])
         return self
 
-# class Session(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.id'), nullable=False)
-#     host_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-#     start_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-#     end_time = db.Column(db.DateTime)
-#     quiz = db.relationship('Quiz')
-#     host = db.relationship('User')
-#     participants = db.relationship('Participant', back_populates='session', cascade='all, delete-orphan')
+class Session(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.id'), nullable=False)
+    host_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    code = db.Column(db.String(6), unique=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    quiz = db.relationship('Quiz')
+    host = db.relationship('User')
+    participants = db.relationship('Participant', back_populates='session', cascade='all, delete-orphan')
 
-# class Participant(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
-#     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-#     join_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-#     session = db.relationship('Session', back_populates='participants')
-#     user = db.relationship('User')
+class Participant(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    join_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    session = db.relationship('Session', back_populates='participants')
+    user = db.relationship('User')
 
-# class Score(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
-#     participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=False)
-#     score = db.Column(db.Integer, nullable=False)
-#     session = db.relationship('Session')
-#     participant = db.relationship('Participant')
+class Response(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
+    participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
+    option_id = db.Column(db.Integer, db.ForeignKey('option.id'), nullable=True)
+    response_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    session = db.relationship('Session')
+    participant = db.relationship('Participant')
+    question = db.relationship('Question')
+    option = db.relationship('Option')
+
+class Score(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
+    participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=False)
+    score = db.Column(db.Integer, nullable=False)
+    session = db.relationship('Session')
+    participant = db.relationship('Participant')
 
 # class Category(db.Model):
 #     id = db.Column(db.Integer, primary_key=True)
@@ -218,18 +230,6 @@ class Option(db.Model):
 #     total_score = db.Column(db.Integer, nullable=False, default=0)
 #     user = db.relationship('User')
 #     quiz = db.relationship('Quiz')
-
-# class Response(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
-#     participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=False)
-#     question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
-#     option_id = db.Column(db.Integer, db.ForeignKey('option.id'), nullable=True)
-#     response_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-#     session = db.relationship('Session')
-#     participant = db.relationship('Participant')
-#     question = db.relationship('Question')
-#     option = db.relationship('Option')
 
 # @login_manager.user_loader
 # def load_user(id):

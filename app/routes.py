@@ -3,6 +3,13 @@ from app import app, db, login_manager
 from flask_login import current_user, login_user, login_required, logout_user
 from app.models import *
 from app.errors import bad_request, error_response
+from app.utils import generate_unique_code
+from flask_socketio import join_room
+
+@app.route('/uid', methods=['GET'])
+@login_required
+def get_uid():
+    return jsonify({'uid': current_user.id})
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -127,3 +134,43 @@ def delete_quiz(quiz_id):
 def get_all_quizzes():
     quizzes = Quiz.query.filter_by(user_id=current_user.id).all()
     return jsonify([quiz.to_dict() for quiz in quizzes])
+
+
+# -------- SESSION ---------
+
+
+@app.route('/create/session', methods=['POST'])
+@login_required
+def create_session():
+    data = request.get_json() or {}
+    quiz_id = data.get('quiz_id')
+    if quiz_id is None:
+        return bad_request('quiz_id is missing')
+    quiz = Quiz.query.get_or_404(quiz_id)
+    if quiz.user_id != current_user.id:
+        return error_response(403, 'You do not have permission to create a session for this quiz.')
+    
+    session_code = generate_unique_code()  # Implement this function to generate a unique code
+    session = Session(quiz_id=quiz.id, host_id=current_user.id, code=session_code)
+    db.session.add(session)
+    db.session.commit()
+    
+    response = jsonify({'session_code': session_code})
+    response.status_code = 201
+    return response
+
+@app.route('/join/session', methods=['POST'])
+@login_required
+def join_session():
+    data = request.get_json() or {}
+    session_code = data.get('session_code')
+    if session_code is None:
+        return bad_request('session_code is missing')
+    session = Session.query.filter_by(code=session_code).first_or_404()
+    
+    # Add participant to session
+    participant = Participant(session_id=session.id, user_id=current_user.id)
+    db.session.add(participant)
+    db.session.commit()
+    
+    return jsonify({'message': 'Joined session successfully'})
