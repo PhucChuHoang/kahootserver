@@ -1,0 +1,16 @@
+{
+  "builds": [
+    {
+      "src": "__init__.py",
+      "use": "@vercel/python",
+      "config": { "zeroConfig": true }
+    }
+  ],
+  "routes": [
+    { "handle": "filesystem" },
+    {
+      "src": "/.*",
+      "dest": "__init__.py"
+    }
+  ]
+}
