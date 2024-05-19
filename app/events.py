@@ -169,15 +169,16 @@ def handle_submit_answer(user_id, data):
     if session_code is None:
         emit('error', {'message': 'session_code is missing'})
         return
-    question_id = data.get('question_id')
+    #Get question_id as number
+    question_id = int(data.get('question_id'))
     if question_id is None:
         emit('error', {'message': 'question_id is missing'})
         return
-    option_id = data.get('option_id')
+    option_id = int(data.get('option_id'))
     if option_id is None:
         emit('error', {'message': 'option_id is missing'})
         return
-    
+
     # Find the session and participant
     session = Session.query.filter_by(code=session_code).first()
     if not session:
@@ -194,15 +195,19 @@ def handle_submit_answer(user_id, data):
     current_question = session.quiz.questions[current_question_index]
 
     if question_id != current_question.id:
-        emit('error', {'message': 'Invalid question_id'})
+        emit('error', {'message': 'Invalid question_id'})   
         return
 
     # Check if the option_id is valid for the current question
     valid_option_ids = [option.id for option in current_question.options]
+
     if option_id not in valid_option_ids:
         emit('error', {'message': 'Invalid option_id'})
         return
     
+    print(f"User {user_id} submitted answer for question {question_id} with option {option_id}")
+    print(f"Current question: {valid_option_ids}")
+
     # Add response to the database
     response = Response(
         session_id=session.id,
@@ -240,6 +245,7 @@ def handle_submit_answer(user_id, data):
             next_question_index = response_tracker[session_code]['current_question_index']
             
             if next_question_index < len(session.quiz.questions):
+                print('Sending next question')
                 next_question = session.quiz.questions[next_question_index]
                 emit('next_question', {
                     'question_id': next_question.id,
