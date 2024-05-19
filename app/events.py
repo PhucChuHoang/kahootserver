@@ -205,8 +205,8 @@ def handle_submit_answer(user_id, data):
         emit('error', {'message': 'Invalid option_id'})
         return
     
-    print(f"User {user_id} submitted answer for question {question_id} with option {option_id}")
-    print(f"Current question: {valid_option_ids}")
+    #print(f"User {user_id} submitted answer for question {question_id} with option {option_id}")
+    #print(f"Current question: {valid_option_ids}")
 
     # Add response to the database
     response = Response(
