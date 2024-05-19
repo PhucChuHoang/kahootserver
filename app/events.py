@@ -22,7 +22,15 @@ response_tracker = {}
 @socketio.on('join_session')
 @jwt_required_socketio
 def handle_join_session(user_id, data):
-    session_code = data['session_code']
+    print("join_session event received")
+    print(f"User ID: {user_id}")
+    print(f"Data: {data}")
+    
+    session_code = data.get('session_code')
+    if session_code is None:
+        emit('error', {'message': 'session_code is missing'})
+        return
+
     username = User.query.get(user_id).username
     
     session = Session.query.filter_by(code=session_code).first()
@@ -36,26 +44,24 @@ def handle_join_session(user_id, data):
 
     # Join the room
     join_room(session_code)
+    send(f'{username} has joined the session.', to=session_code)
 
-    # Get the list of all participants
+    # Emit session update
     participants = Participant.query.filter_by(session_id=session.id).all()
-    participant_list = [{'id': p.user_id, 'username': User.query.get(p.user_id).username} for p in participants]
+    participant_usernames = [User.query.get(p.user_id).username for p in participants]
+    emit('session_update', {
+        'host': User.query.get(session.host_id).username,
+        'participants': participant_usernames
+    }, to=session_code)
 
-    # Get the host
-    host = {'id': session.host.id, 'username': session.host.username}
-
-    # Emit the updated participant list to all participants in the room
-    data = {
-        'message': f'{username} has joined the session.',
-        'host': host,
-        'participants': participant_list
-    }
-    emit('session_update', data, to=session_code)
 
 @socketio.on('leave_session')
 @jwt_required_socketio
 def handle_leave_session(user_id, data):
-    session_code = data['session_code']
+    session_code = data.get('session_code')
+    if session_code is None:
+        emit('error', {'message': 'session_code is missing'})
+        return
     username = User.query.get(user_id).username
     
     session = Session.query.filter_by(code=session_code).first()
@@ -66,10 +72,25 @@ def handle_leave_session(user_id, data):
         return
     
     try:
+        # Remove participant from the session
+        db.session.delete(participant)
+        db.session.commit()
+        
+        # Leave the room
         leave_room(session_code)
         send(f'{username} has left the session.', to=session_code)
+        
+        # Emit session update
+        participants = Participant.query.filter_by(session_id=session.id).all()
+        participant_usernames = [User.query.get(p.user_id).username for p in participants]
+        emit('session_update', {
+            'host': User.query.get(session.host_id).username,
+            'participants': participant_usernames
+        }, to=session_code)
     except Exception as e:
+        db.session.rollback()
         emit('error', {'message': str(e)})
+
 
 @socketio.on('start_quiz')
 @jwt_required_socketio
