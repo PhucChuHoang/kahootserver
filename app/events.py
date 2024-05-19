@@ -41,7 +41,7 @@ def handle_join_session(user_id, data):
     if session.is_started:
         emit('error', {'message': 'Session has already started. You cannot join now.'})
         return
-
+    print(f'{username}: Join room successfully: {session_code}')
     # Join the room
     join_room(session_code)
     send(f'{username} has joined the session.', to=session_code)
