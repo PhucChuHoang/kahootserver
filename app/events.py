@@ -30,17 +30,22 @@ def handle_join_session(user_id, data):
     if session_code is None:
         emit('error', {'message': 'session_code is missing'})
         return
-
-    username = User.query.get(user_id).username
     
     session = Session.query.filter_by(code=session_code).first()
     if not session:
         emit('error', {'message': 'Session not found'})
         return
+    
+    participant = Participant.query.filter_by(session_id=session.id, user_id=user_id).first()
+    if not participant:
+        emit('error', {'message': 'You must join the session through the main interface before using the socket.'})
+        return
 
     if session.is_started:
         emit('error', {'message': 'Session has already started. You cannot join now.'})
         return
+
+    username = User.query.get(user_id).username
     print(f'{username}: Join room successfully: {session_code}')
     # Join the room
     join_room(session_code)
@@ -53,6 +58,7 @@ def handle_join_session(user_id, data):
         'host': User.query.get(session.host_id).username,
         'participants': participant_usernames
     }, to=session_code)
+
 
 
 @socketio.on('leave_session')
@@ -124,6 +130,7 @@ def handle_start_quiz(user_id, data):
     emit('next_question', {
         'question_id': first_question.id,
         'question_text': first_question.text,
+        'total': len(session.quiz.questions),
         'options': [{'id': option.id, 'text': option.text, 'is_correct': option.is_correct} for option in first_question.options]
     }, to=session_code)
 
