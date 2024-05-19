@@ -33,24 +33,10 @@ def handle_join_session(user_id, data):
     if session.is_started:
         emit('error', {'message': 'Session has already started. You cannot join now.'})
         return
-
+    print(f'{username}: Join room successfully: {session_code}')
     # Join the room
     join_room(session_code)
-
-    # Get the list of all participants
-    participants = Participant.query.filter_by(session_id=session.id).all()
-    participant_list = [{'id': p.user_id, 'username': User.query.get(p.user_id).username} for p in participants]
-
-    # Get the host
-    host = {'id': session.host.id, 'username': session.host.username}
-
-    # Emit the updated participant list to all participants in the room
-    data = {
-        'message': f'{username} has joined the session.',
-        'host': host,
-        'participants': participant_list
-    }
-    emit('session_update', data, to=session_code)
+    send(f'{username} has joined the session.', to=session_code)
 
 @socketio.on('leave_session')
 @jwt_required_socketio

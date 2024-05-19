@@ -22,7 +22,7 @@ def login():
     if user is None or not user.check_password(data['password']):
         return bad_request('invalid username or password')
     access_token = create_access_token(identity=user.id)
-    response = jsonify(access_token=access_token, id=user.id)
+    response = jsonify(access_token=access_token)
     response.status_code = 200
     return response
 
