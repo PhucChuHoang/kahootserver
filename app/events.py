@@ -101,7 +101,10 @@ def handle_leave_session(user_id, data):
 @socketio.on('start_quiz')
 @jwt_required_socketio
 def handle_start_quiz(user_id, data):
-    session_code = data['session_code']
+    session_code = data.get('session_code')
+    if session_code is None:
+        emit('error', {'message': 'session_code is missing'})
+        return
     session = Session.query.filter_by(code=session_code).first()
     
     if not session:
@@ -138,9 +141,18 @@ def handle_start_quiz(user_id, data):
 @socketio.on('submit_answer')
 @jwt_required_socketio
 def handle_submit_answer(user_id, data):
-    session_code = data['session_code']
-    question_id = data['question_id']
-    option_id = data['option_id']
+    session_code = data.get('session_code')
+    if session_code is None:
+        emit('error', {'message': 'session_code is missing'})
+        return
+    question_id = data.get('question_id')
+    if question_id is None:
+        emit('error', {'message': 'question_id is missing'})
+        return
+    option_id = data.get('option_id')
+    if option_id is None:
+        emit('error', {'message': 'option_id is missing'})
+        return
     
     # Find the session and participant
     session = Session.query.filter_by(code=session_code).first()
@@ -180,6 +192,7 @@ def handle_submit_answer(user_id, data):
                 emit('next_question', {
                     'question_id': next_question.id,
                     'question_text': next_question.text,
+                    'total': len(session.quiz.questions),
                     'options': [{'id': option.id, 'text': option.text, 'is_correct': option.is_correct} for option in next_question.options]
                 }, to=session_code)
             else:
