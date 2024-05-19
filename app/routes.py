@@ -156,6 +156,7 @@ def create_session():
     session_code = generate_unique_code()  # Implement this function to generate a unique code
     session = Session(quiz_id=quiz.id, host_id=user_id, code=session_code)
     db.session.add(session)
+    db.session.commit()
     participant = Participant(session_id=session.id, user_id=user_id)
     db.session.add(participant)
     db.session.commit()
